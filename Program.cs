@@ -5,7 +5,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
+builder.Services.AddSingleton<FileLoggerService>();
 builder.Services.AddHttpClient<OllamaService>(client =>
 {
     client.BaseAddress = new Uri("http://localhost:11434");
@@ -21,7 +21,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapGet("/", () => "Ai Email Assistant API is running.");
 
-app.MapPost("/draft", async (DraftEmailRequest request, OllamaService ollama) =>
+app.MapPost("/draft", async (DraftEmailRequest request, OllamaService ollama, FileLoggerService logger) =>
 {
     var prompt = $"""
                   You are an email writing assistant.
@@ -38,10 +38,11 @@ app.MapPost("/draft", async (DraftEmailRequest request, OllamaService ollama) =>
                   Body:
                   """;
     var result = await ollama.GenerateAsync(prompt);
+    await logger.LogAsync("/draft", request, result);
     return Results.Ok(result);
 });
 
-app.MapPost("/tone", async (ToneChangeRequest request, OllamaService ollama) =>
+app.MapPost("/tone", async (ToneChangeRequest request, OllamaService ollama, FileLoggerService logger) =>
 {
     var prompt = $"""
                   Rewrite the following email in a {request.TargetTone} tone.
@@ -51,10 +52,11 @@ app.MapPost("/tone", async (ToneChangeRequest request, OllamaService ollama) =>
                   {request.EmailText}
                   """;
     var result = await ollama.GenerateAsync(prompt);
+    await logger.LogAsync("/tone", request, result);
     return Results.Ok(new { output = result });
 });
 
-app.MapPost("/reply-suggestion", async (ReplySuggestionRequest request, OllamaService ollama) =>
+app.MapPost("/reply-suggestion", async (ReplySuggestionRequest request, OllamaService ollama, FileLoggerService logger) =>
 {
     var prompt = $"""
                   You are an email reply assistant.
@@ -65,6 +67,7 @@ app.MapPost("/reply-suggestion", async (ReplySuggestionRequest request, OllamaSe
                   {request.IncomingEmail}
                   """;
     var result = await ollama.GenerateAsync(prompt);
+    await logger.LogAsync("/reply-suggestion", request, result);
     return Results.Ok(new { output = result });
 });
 app.Run();
